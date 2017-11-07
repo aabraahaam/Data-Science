@@ -1,0 +1,143 @@
+---
+title: "Tarea 1"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##Ejercicio 1
+```{r}
+#library(mosaic)
+library(mosaicCalc)
+f<-D(3*x**2-2*x+4~x)
+f
+```
+a)
+```{r}
+  f(0)
+```
+La derivada en el valor 0 es -2.
+
+b)
+```{r}
+curve(f,-5,5)
+```
+La respuesta es b, una linea con pendiente positiva.
+
+##Ejercicio 2
+
+a)
+```{r}
+f<-D(5*exp(.2*x)~x)
+f
+f(0)
+```
+El valor de la derivada en 0 es 1.
+
+b)
+```{r}
+curve(f,-5,5)
+curve(5*exp(.2*x),-5,5)
+```
+La respuesta es b, tienen la misma forma exponencial pero diferentes valores inciales.
+
+##Ejercicio3
+
+```{r}
+f<-D(exp(-x**2)~x)
+f
+curve(f,-2,2)
+```
+Yo observo dos curvas positivas y esa respuesta no aparece en las soluciones.
+
+##Ejercicio 4
+
+```{r}
+f<-D(fred**2~ginger)
+f
+```
+La respuesta es a, el valor de la derivada será 0 en todo el dominio.
+
+##Ejercicio 5
+
+```{r}
+f<-D(cos(2*t)~t&t&t)
+f
+```
+La respuesta es d, $8sen(2t)$.
+
+Calculamos la cuarta derivada.
+```{r}
+f<-D(cos(2*t)~t&t&t&t)
+f
+```
+La respuesta es e, $16cos(2t)$.
+
+##Ejercicio 5
+
+```{r}
+f<-D(cos(2*t**2)~t&t&t&t)
+f
+curve(f,0,5)
+```
+La respuesta es c, un coseno cuya amplitud aumento y periodo disminuye conforme t crece.
+
+La respuesta a la segunda pregunta del ejercicio es la c, multiplicación, cuadrados, cosenos, senos y sumas.
+
+##Ejercicio 7
+
+```{r}
+f<-function(x,y) x*sin(y)
+px<-D(f(x,y)~x)
+px
+py<-D(f(x,y)~y)
+py
+pxx<-D(f(x,y)~x&x)
+pxx
+pyy<-D(f(x,y)~y&y)
+pyy
+pxy<-D(f(x,y)~x&y)
+pxy
+pyx<-D(f(x,y)~y&x)
+pyx
+```
+```{r}
+#x
+px(1,1)
+px(3,7)
+px(9,1)
+#y
+py(1,1)
+py(3,7)
+py(9,1)
+#xx
+pxx(1,1)
+pxx(3,7)
+pxx(9,1)
+#yy
+pyy(1,1)
+pyy(3,7)
+pyy(9,1)
+#xy
+pxy(1,1)
+pxy(3,7)
+pxy(9,1)
+#yx
+pyx(1,1)
+pyx(3,7)
+pyx(9,1)
+```
+
+No es necesario evaluar las funciones para responder a las siguientes afirmaciones.
+
+The partial with respect to x and to y are identical.
+Falso.
+
+The second partials with respect to x and y are identical.
+Falso.
+
+The two mixed partials are identical.
+Verdadero.

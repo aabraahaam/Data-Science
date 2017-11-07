@@ -1,0 +1,212 @@
+---
+title: "Practica 5"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Ejercicio 1. Búsqueda y Selección.
+Cargar los datos de "student_census.csv" del repositorio haciendo uso de read.csv. Para una celebración
+deportiva en el campus, se quiere saber si es posible formar un equipo de 5 estudiantes que jueguen al
+Baloncesto. Para ello se pide localizar a todos los estudiantes que practiquen dicho deporte y de ellos
+seleccionar 5 mediante una selección aleatoria. Para seleccionarlos se implementará una función que genera
+números aleatorios uno a uno en el rango adecuado, si el estudiante aún no forma parte del equipo se integrará
+y si ya está se generará otro número aleatorio hasta que estén seleccionados los cinco.
+
+Primero localizamos a todos los estudiantes del data frame que practican basketball.
+
+```{r}
+student<-read.csv("C:/Users/prueba/Documents/CUNEF/Programación R/Prácticas/Practica 5/student_census.csv")
+v<-c()
+for (i in 1:nrow(student)){
+  if(student$Physical[i]=='Basketball'){
+   v<-c(v,i)
+  }
+}
+v
+```
+
+Ahora seleccionamos números aleatorios sin repetición del 1 hasta el número de personas que juegan basketball. Despues aplicamos esos numeros a nuestro vector de jugadores de basketball.
+```{r}
+aleatorio<-sample(1:length(v),5,replace=F)
+v[aleatorio]
+```
+
+##Ejercicio 2. Ordenación y Regresión.
+Con los datos de "student_census.csv" del ejercicio anterior, se pide filtrar en un data.frame las variables Height,
+Arm.Span, Foot.Size y realizar correlaciones dos a dos. Ordenar los datos de acuerdo con la estatura para
+determinar la procedencia de los alumnos más altos y hacer un diagrama de barras que indique los resultados
+por provincias.
+
+Primero sacamos las variables deseadas y creamos un nuevo data frame.
+```{r}
+data<-data.frame(student$Height,student$Arm.Span,student$Foot.Size)
+head(data)
+```
+Calculamos la matriz de correlación.
+```{r}
+cor(data)
+```
+Agregamos la variable provincia y despues ordenamos de mayor a menor el data frame con la variable altura. Observamos que el data frame está ordenado.
+```{r}
+data<-data.frame(data,student$Province)
+order(data$student.Height)
+data<-data[with(data, order(-student.Height)), ]
+head(data)
+```
+Ahora graficamos las estaturas más altas del data frame.
+```{r}
+barplot(data$student.Height[1:20],names.arg = data$student.Province[1:20])
+```
+
+##Ejercicio 3. MapReduce. Simulación
+Con los datos de "student_census.csv" del ejercicio anterior, se pide:
+Particionar el dataset en 20 subconjuntos.
+Map: Ordenar cada uno de los subconjuntos por estatura en orden decreciente usando el algoritmo quicksort
+Implementar una función que mezcle ordenadamente dos subconjuntos previamente ordenados* (también se
+puede hacer por fuerza bruta, pero no es lo que se pide).
+Reduce: Utilizar la función anterior de manera adecuada, el número de veces que se requiera para conseguir la
+ordenación total del conjunto de 200 registros.
+
+Dividimos el data frame en 20 y ordenamos cada uno de ellos por separado con el metodo quick sort.
+Al final podemos observar que cada data frame está ordenado.
+```{r}
+#Se divide el data frame en 20 data frames
+x<-split(student, sample(rep(1:20, 10,replace=F)))
+#Se ordenan con el método de quick sort cada uno de los data frames
+for (i in 1:20){
+  x[[i]]<-x[[i]][with(x[[i]], sort(x[[i]]$Height, method="quick",index.return=T)$ix), ]
+  print(i)
+  print(x[[i]]$Height)
+}
+
+```
+Creamos una función que une dos data frames y los ordena por la variable altura.
+```{r}
+ordenar<- function(v,w){
+    nuevo<-rbind(v,w)
+    nuevo<-nuevo[with(nuevo, sort(nuevo$Height, method="quick",index.return=T)$ix), ]
+    return(nuevo)
+}
+```
+Ahora usamos la función creada para tener un único data frame ordenado. (Reduce)
+```{r}
+df<-NULL
+for (i in 1:20){
+  df<-ordenar(df,x[[i]])
+}
+head(df)
+tail(df)
+```
+
+##Ejercicio 4. MapReduce. Clasificación
+Con los datos de "student_census.csv" del ejercicio anterior, se pide:
+Particionar el dataset en 20 subconjuntos.
+Map: para cada subconjunto, calcular cuántos estudiantes practican cada uno de los deportes en cada
+provincia
+Reduce: integrar adecuadamente los resultados de cada dataset para determinar cuántos estudiantes de
+cada provincia practican cada uno de los deportes.
+
+Primero creamos dos vectores con las diferentes provincias y deportes.
+Lo que hace este bucle es:
+
+Parte el data frame en 20
+
+Elige una provincia
+
+Elige un deporte
+
+Si el deporte y provincia coinciden los cuenta y los asigna a un lugar especifico de una matriz.
+
+Siguiente data frame.
+
+Siguiente deporte.
+
+Siguiente provincia.
+
+Al final nos devuelve una matriz con los resultados.
+```{r}
+a<-unique(student$Province)
+b<-unique(student$Physical)
+contador<-0
+matriz<-matrix(NA,nrow = 22,ncol=10)
+rownames(matriz)<-b
+colnames(matriz)<-a
+for (k in 1:10){
+  for (j in 1:22){
+    contador<-0
+    l<-1
+    while(l<21){
+      m<-1+10*(l-1)
+      n<-l*10
+    for (i in m:n){
+      if (student$Physical[i]==b[j] & student$Province[i]==a[k]){
+        contador<-contador+1
+      }
+    }
+      l<-l+1
+      }
+    matriz[j,k]<-contador
+  }
+}
+matriz
+sum(matriz)
+```
+
+##Ejercicio 5. MapReduce. Medias por bloques
+Implementar una función que reciba como entrada un dataset de números y un número natural. La función
+debe devolver la media de los números almacenados en el dataset. Para ello se debe implementar una
+simulación de la metodología MapReduce de la siguiente forma:
+Primero se recogen los datos y el valor n del input
+Segundo se divide el dataset en n datasets de tamaños aproximados
+Tercero se calcula la suma de cada bloque y su tamaño
+Cuarto se combinan los resultados anteriores para obtener la media del dataset original.
+
+Se crea una función que lo que hace es recibir un número y un vector, despues divide el vector en n vectores y los suma.
+Crea un vector con las sumas de cada partición y al final suma el vector y lo divide entre el número de elementos del vector original y comparamos nuestro resultado con la función mean de R.
+```{r}
+v<-c(1,2,3,4,5,6,7,8,9,0,11:20,35:100)
+mreduce <- function(n,v){
+  m=length(v)
+  sumas<-NULL
+  l<-NULL
+  for (i in 1:n){
+    s=round(m/n)
+    a=s*i-s+1
+    b=s*i
+    if (i==n){
+      l<-c(v[a:m],l)
+      sumas<-c(sumas,sum(v[a:m]))
+    }
+    else{
+    l<-c(v[a:b],l)
+    sumas<-c(sumas,sum(v[a:b]))}
+  }
+  return(sum(sumas)/m)
+}
+mreduce(4,v)
+mean(v)
+```
+
+##Ejercicio 6. Programación Recusiva y Funcional
+Observad este código Haskell:
+[(l,h)|h<-[0..51], l<-[0..h-1], sum[l..h]==100]
+Intentar adivinar cúal es el propósito del código y qué resultado obtiene.
+Observar esta solución recursiva en R y decidir cuál es el propósito del código:
+
+```{r}
+busca <- function (l, h, st){
+if (l<=st) {if (sum(l:h) ==st) {print(c(l, h))
+return(busca(l+1,l+1,st))}
+else {if (sum(l:h)<st) return(busca(l, h+1, st))
+else return(busca(l+1, l+1, st))}
+}
+}
+busca(0,100, 100)
+```
+
+Esta función lo que hace es buscar todas las combinaciones de rangos del 0 al 100 donde la suma de sus elementos sea 100.

@@ -1,0 +1,119 @@
+---
+title: "Practica 1 - Abraham Ramirez"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Leemos lo datos y eliminamos las variables que contienen texto
+```{r}
+Data<-read.csv('C:/Users/prueba/Documents/CUNEF/Predicción/MDSF_Prediccion-master/Clase02/Datos/Fondos.csv',sep=';',dec=',')
+Data1<-Data
+Data1<-Data1[,-2]
+Data1<-Data1[,-4]
+Data1<-Data1[,-4]
+#Observamos que tenemos variables con mÃ¡s de la mitad de los registros nulos, entonces los elimino.
+summary(Data1)
+
+```
+#Creando modelos
+##Creamos nuestra primera regresión
+```{r}
+regres01<-lm(rent_1~ImportFile_CustomDelayToBuy+Dias_depl_reemb+Inv_minima_inicial+
+X1_Day_Return+X1_Week_Return+rent_1_mes+rent_3_meses+rent_6_meses+rent_en_el_anio+
+rent_3_anios+rent_5_anios +Patrimonio+Volatilidad_3+Sharpe_.3+
+Ratio_de_informacion+Media_3+Com_Gestion+ImportFile_CustomBuyFee2+Com_Suscripcion+
+Com_deposito ,data=Data1,na.action = na.omit)
+summary(regres01)
+```
+
+##Hacemos una segunda regresión con todas las variables que son significativas.
+```{r}
+regres01<-lm(rent_1~rent_3_meses+rent_6_meses+rent_en_el_anio+
+rent_3_anios+Volatilidad_3+Media_3+Com_deposito ,data=Data1,na.action = na.omit)
+summary(regres01)
+```
+##Creamos otro modelo con las variables significativas.
+```{r}
+regres01<-lm(rent_1~rent_6_meses+rent_en_el_anio+
+rent_3_anios+Volatilidad_3+Media_3 ,data=Data1,na.action = na.omit)
+summary(regres01)
+```
+##Observamos que ahora todas nuestras variables son signifcativas.
+##Vemos valores outliers.
+```{r}
+library(car)
+outlierTest(regres01)
+```
+##Tomamos el siguiente modelo para compraralo con nuestro modelo original.
+```{r}
+regres02<-lm(rent_1~rent_en_el_anio+
+rent_3_anios+Volatilidad_3+Media_3+rent_6_meses+rent_en_el_anio:rent_3_anios,data=Data1,na.action = na.omit)
+summary(regres02)
+outlierTest(regres02)
+```
+#Graficamos los errores de nuestros modelos.
+```{r}
+residplot <- function(fit, nbreaks=10) {
+  z <- rstudent(fit)
+  hist(z, breaks=nbreaks, freq=FALSE,
+       xlab="Studentized Residual",
+       main="Distribution of Errors")
+  rug(jitter(z), col="brown")
+  curve(dnorm(x, mean=mean(z), sd=sd(z)),
+        add=TRUE, col="blue", lwd=2)
+  lines(density(z)$x, density(z)$y,
+        col="red", lwd=2, lty=2)
+  legend("topright",
+         legend = c( "Normal Curve", "Kernel Density Curve"),
+         lty=1:2, col=c("blue","red"), cex=.7)
+}
+
+residplot(regres01)
+residplot(regres02)
+```
+
+#Test de HipÃ³tesis.
+```{r}
+vif(regres01)
+sqrt(vif(regres01)) > 2
+vif(regres02)
+sqrt(vif(regres02)) > 2
+plot(regres01)
+plot(regres02)
+library(gvlma)
+gvmodel1 <- gvlma(regres01)
+summary(gvmodel1)
+gvmodel2 <- gvlma(regres02)
+summary(gvmodel2)
+```
+##Observamos que nuestro segundo modelo cumple mas tests que el primero. Ahora pasaremos a comparar los valores del AIC.
+```{r}
+AIC(regres01,regres02)
+BIC(regres01,regres02)
+```
+##El segundo modelo es el que tiene un menor valor de AIC y de BIC, por lo tanto este serÃ¡ nuestro modelo final.
+#Pasaremos a evaluar el modelo.
+```{r}
+library(ISLR)
+set.seed(250)
+numData=nrow(Data1)
+train=sample(numData ,numData/2)
+
+attach(Data1)
+regres.train01 =lm(rent_1~rent_6_meses+rent_en_el_anio+rent_3_anios+Volatilidad_3+Media_3,Data1,subset =train,na.action = na.omit )
+mean((rent_1-predict(regres.train01 ,Auto,na.action = na.omit))[-train ]^2)
+
+regres.train02 =lm(rent_1~rent_en_el_anio+
+rent_3_anios+Volatilidad_3+Media_3+rent_6_meses+rent_en_el_anio:rent_3_anios,Data1 ,subset =train ,na.action = na.omit)
+mean((rent_1-predict(regres.train02 ,Auto,na.action = na.omit))[-train ]^2)
+
+```
+##Vemos que el segundo modelo predice mejor la rentabilidad a un año ya que su error medio es más bajo.
+##En conclusión nos quedamos con el modelo 2 que es:
+##rent_1~rent_en_el_anio+rent_3_anios+Volatilidad_3+Media_3+
+##rent_6_meses+rent_en_el_anio:rent_3_anios
