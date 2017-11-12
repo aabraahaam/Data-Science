@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1509981382313.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "364213410",
+    "id" : "89850B7",
+    "lastKnownWriteTime" : 1510505492,
+    "last_content_update" : 1510505492513,
+    "path" : "~/CUNEF/Visualización/Practica normal multivariada/app.R",
+    "project_path" : "app.R",
+    "properties" : {
+        "cursorPosition" : "22,37",
+        "scrollLine" : "10"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

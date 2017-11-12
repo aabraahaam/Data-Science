@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1509981382313.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3840631548",
+    "id" : "89850B7",
+    "lastKnownWriteTime" : 1510507702,
+    "last_content_update" : 1510507702641,
+    "path" : "C:/Users/prueba/Desktop/Clase 1106 Shiny 1 genera ma/app.R",
+    "project_path" : "app.R",
+    "properties" : {
+        "cursorPosition" : "32,2",
+        "scrollLine" : "8"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
