@@ -1,0 +1,235 @@
+---
+title: "Prediccion"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+#library(modelr)
+library(dplyr)
+library(purrr)
+library(leaps)
+library(tidyr)
+library(verification)
+library(ROCR)
+library(stringr)
+library(boot)
+```
+
+#Práctica 2
+
+#Regresión Logística, Predicción y ROC
+
+El objetivo de esta práctica es clasificar a los clientes que solicitan un crédito. 
+
+Obtendremos un modelo que clasifique lo mejor posible a los clientes buenos y malos.
+
+##Limpieza
+
+Primero leemos el csv con los datos de los clientes.
+
+```{r}
+creditos<-read.csv("Datos.csv", skip = 1, header = TRUE, na.strings =c( "","NA","n/a"))
+summary(creditos)
+```
+
+Observamos que hay variables que no tienen nada de información por lo que procederemos a eliminarlas.
+
+```{r}
+creditos <- creditos[,colSums(is.na(creditos))<40000]
+creditos <- creditos[,colSums(is.na(creditos))<1500]
+summary(creditos)
+```
+
+Ahora observamos que hay variables que son muy parecidas para todos los clientes, las eliminaremos porque estamos buscando variables donde haya diferencias significativas entre los clientes.
+
+```{r}
+creditos$id<-NULL
+creditos$debt_settlement_flag<- NULL
+creditos$settlement_status<- NULL
+creditos$settlement_date<- NULL
+creditos$out_prncp<- NULL
+creditos$out_prncp_inv<- NULL
+creditos$collections_12_mths_ex_med<-NULL
+creditos$policy_code<-NULL
+creditos$acc_now_delinq<-NULL
+creditos$chargeoff_within_12_mths<-NULL
+creditos$delinq_amnt<-NULL
+creditos$tax_liens<-NULL
+creditos$initial_list_status<-NULL
+creditos$hardship_flag<-NULL
+creditos$pymnt_plan<-NULL
+creditos$application_type<-NULL
+creditos$disbursement_method<-NULL
+creditos$pub_rec_bankruptcies<-NULL
+creditos$title <- NULL
+creditos$zip_code <- NULL
+creditos$emp_length<-NULL
+```
+
+Eliminamos NA
+
+```{r}
+creditos=na.omit(creditos)
+```
+
+Y ahora cambiaremos los valores de la variable dependiente a 1 y 0.
+
+También cambiaremos la tasa de interés a númerico y vamos a recortar la variable term.
+
+```{r}
+creditos$loan_status<-revalue(creditos$loan_status, c("Does not meet the credit policy. Status:Fully Paid"="Fully Paid"))
+creditos$loan_status<-revalue(creditos$loan_status, c("Does not meet the credit policy. Status:Charged Off"="Charged Off"))
+creditos[,13] <- as.character(creditos[,13])
+str(creditos[,13])
+creditos[creditos$loan_status=='Fully Paid',13] <- 1 
+creditos[creditos$loan_status=='Charged Off',13] <- 0
+creditos[,13] <- as.numeric(creditos[,13])
+unique(creditos[,13])
+creditos$int_rate <- as.numeric( str_sub(creditos$int_rate, 1, str_length(creditos$int_rate)-1))
+creditos$term<-revalue(creditos$term, c(" 36 months"='36'))
+creditos$term<-revalue(creditos$term, c(" 60 months"='60'))
+```
+
+
+##Modelado
+
+Crearemos un data frame de entrenamiento con el 60% de los datos y uno de validación con el 40% restante.
+
+```{r}
+train <- sample(nrow(creditos), .60*nrow(creditos),replace = F)
+muestra<-creditos[train,]
+validacion <- creditos[-train,]
+```
+
+Las variables que he seleccionado para el modelado inicial son:
+
+* El total de la deuda abonado hasta este punto.
+* El número de investigaciones en los últimos 6 meses.
+* Tasa de interés
+* Cantidad de dinero solicitado por el prestatario.
+* Número de pagos del prestamo.
+* Calificación del prestamo.
+* Estatus de la vivienda.
+* Ingreso anual.
+* Crédito en cuentas revolventes.
+* Número de creditos activos.
+* Número de créditos con mas de 30 días sin realizar un pago.
+* Número de creditos que ha tenido el prestatario.
+* Número de créditos activos.
+* Payments received to date for total amount funded
+* Suma de los pagos recibidos.
+* Último pago.
+
+```{r}
+
+regresion <- glm(loan_status~funded_amnt+int_rate+loan_amnt+term+grade+home_ownership+
+                   annual_inc+revol_bal+total_acc+delinq_2yrs+inq_last_6mths+open_acc+total_acc+
+                   total_pymnt+last_pymnt_amnt, data=muestra,family = 'binomial')
+summary(regresion)
+```
+
+Usamos este método para que R nos calcule cuales son las mejores variables para predecir.
+
+```{r, cache=TRUE}
+credit.glm.step <- step(regresion)
+```
+
+Nos quedamos con las variables que R ha seleccionado y hacemos una nueva regresión.
+
+```{r}
+regresionfinal <- glm(loan_status ~ funded_amnt + int_rate + term + annual_inc + revol_bal + 
+                   total_pymnt + last_pymnt_amnt, data=muestra,family = 'binomial')
+summary(regresionfinal)
+```
+
+Observamos que todas las variables son significativas. 
+
+Procederemos a calcular el error del modelo.
+
+##Validación
+
+```{r}
+hist(predict(regresionfinal,type="response"))
+```
+
+Observando la gráfica anterior pondremos el punto de corte en el valor .5.
+
+###Dentro de la muestra
+
+Veremos cual es el rendimiento del modelo dentro de la muestra de entrenamiento:
+
+```{r}
+prob.glm1.insample <- predict(regresionfinal,type="response")
+predicted.glm1.insample <- prob.glm1.insample > 0.5
+predicted.glm1.insample <- as.numeric(predicted.glm1.insample)
+```
+
+Calculamos la matriz de confusión
+
+```{r}
+
+table(muestra$loan_status, predicted.glm1.insample, dnn=c("Truth","Predicted"))
+```
+
+Calculamos la tasa de error
+
+```{r}
+mean(ifelse(muestra$loan_status != predicted.glm1.insample, 1, 0))
+```
+
+###Fuera de la muestra
+
+Ahora veremos como se comporta el modelo con nuestra muestra de validación
+
+```{r}
+prob.glm1.outsample <- predict(regresionfinal,validacion,type="response")
+prob.glm0.outsample <- predict(regresion,validacion,type="response")
+predicted.glm1.outsample <-  prob.glm1.outsample> 0.5
+predicted.glm1.outsample <- as.numeric(predicted.glm1.outsample)
+```
+
+Calculamos la matriz de confusion 
+
+```{r}
+table(validacion$loan_status, predicted.glm1.outsample, dnn=c("Truth","Predicted"))
+```
+
+Observamos que el modelo se comporta bien dentro y fuera de la muestra de entrenamiento.
+
+Calculamos el error
+
+```{r}
+mean(ifelse(validacion$loan_status != predicted.glm1.outsample, 1, 0))
+```
+
+Observamos que el error es un poco menor fuera de la muestra de entrenamiento.
+
+###Curva ROC
+
+```{r}
+roc.plot(validacion$loan_status  == '1', prob.glm1.outsample)
+roc.area(validacion$loan_status  == '1', prob.glm1.outsample)$A
+```
+
+El area bajo la curva es de .97 por lo que podemos decir que el modelo predice bien.
+
+Otra forma de graficar la curva ROC:
+
+```{r}
+pred <- prediction(prob.glm1.outsample, validacion$loan_status)
+perf <- performance(pred, "tpr", "fpr")
+plot(perf, colorize=TRUE)
+unlist(slot(performance(pred, "auc"), "y.values"))
+
+```
+
+##Conclusiones
+
+El modelo final presenta un error muy bajo y, como se puede apreciar en la curva ROC, un área bajo la curva muy alta. Se logró separar muy bien a los clientes que pagan de los que no. 
+
+El modelo predice muy bien, esto puede ser porque alguna de las variables del modelo está muy relacionada con la variable que queremos explicar.
+
