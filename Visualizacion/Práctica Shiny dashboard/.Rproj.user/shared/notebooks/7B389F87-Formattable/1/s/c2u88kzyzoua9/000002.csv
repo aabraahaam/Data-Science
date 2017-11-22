@@ -1,0 +1,34 @@
+"0","df <- data.frame("
+"0","  id = 1:10,"
+"0","  name = c(""Bob"", ""Ashley"", ""James"", ""David"", ""Jenny"", "
+"0","    ""Hans"", ""Leo"", ""John"", ""Emily"", ""Lee""), "
+"0","  age = c(28, 27, 30, 28, 29, 29, 27, 27, 31, 30),"
+"0","  grade = c(""C"", ""A"", ""A"", ""C"", ""B"", ""B"", ""B"", ""A"", ""C"", ""C""),"
+"0","  test1_score = c(8.9, 9.5, 9.6, 8.9, 9.1, 9.3, 9.3, 9.9, 8.5, 8.6),"
+"0","  test2_score = c(9.1, 9.1, 9.2, 9.1, 8.9, 8.5, 9.2, 9.3, 9.1, 8.8),"
+"0","  final_score = c(9, 9.3, 9.4, 9, 9, 8.9, 9.25, 9.6, 8.8, 8.7),"
+"0","  registered = c(TRUE, FALSE, TRUE, FALSE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE),"
+"0","  stringsAsFactors = FALSE)"
+"0","library(formattable)"
+"2","package ‘formattable’ was built under R version 3.3.3"
+"2","
+Attaching package: ‘formattable’
+
+"
+"2","The following object is masked from ‘package:plotly’:
+
+    style
+
+"
+"0","formattable(df, list("
+"0","  age = color_tile(""white"", ""orange""),"
+"0","  grade = formatter(""span"", style = x ~ ifelse(x == ""A"", "
+"0","    style(color = ""green"", font.weight = ""bold""), NA)),"
+"0","  area(col = c(test1_score, test2_score)) ~ normalize_bar(""pink"", 0.2),"
+"0","  final_score = formatter(""span"","
+"0","    style = x ~ style(color = ifelse(rank(-x) <= 3, ""green"", ""gray"")),"
+"0","    x ~ sprintf(""%.2f (rank: %02d)"", x, rank(-x))),"
+"0","  registered = formatter(""span"","
+"0","    style = x ~ style(color = ifelse(x, ""green"", ""red"")),"
+"0","    x ~ icontext(ifelse(x, ""ok"", ""remove""), ifelse(x, ""Yes"", ""No"")))"
+"0","))"

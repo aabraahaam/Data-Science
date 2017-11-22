@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1510848888726.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3006032546",
+    "id" : "91E1AF26",
+    "lastKnownWriteTime" : 1511086741,
+    "last_content_update" : 1511086741235,
+    "path" : "C:/Users/prueba/Desktop/Clase 1116 Shiny dashboard/app.R",
+    "project_path" : "app.R",
+    "properties" : {
+        "cursorPosition" : "4,13",
+        "scrollLine" : "0",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
