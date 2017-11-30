@@ -1,0 +1,261 @@
+---
+title: "Práctica 3"
+output: html_document
+author: 'Abraham Ramírez'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(forecast)
+library(ggplot2)
+library(quantmod)
+library(moments)
+library(ggfortify)
+library(plotly)
+library(reader)
+library(gridExtra)
+```
+
+#Predicción de las ventas de Apple
+
+Apple es una empresa multinacional estadounidense que diseña y produce equipos electrónicos, software y servicios en línea, con sede en Cupertino (California, Estados Unidos) y la sede europea en la ciudad de Cork (Irlanda). Sus productos de hardware incluyen el teléfono inteligente iPhone, la tableta iPad, el ordenador personal Mac, el reproductor de medios portátil iPod, el reloj inteligente Apple Watch y el reproductor de medios digitales Apple TV.
+
+El objetivo de esta práctica es predecir las ventas de Apple con el método de series de tiempo que menos error tenga.
+
+Procederemos a leer los datos y hacer un análisis exploratorio.
+
+```{r}
+apple <- read.csv('apple.csv')
+apple[is.na(apple)] <- 0
+summary(apple)
+```
+
+Con estos estadisticos se puede ver que el iPhone es el producto que más ha vendido en los últimos años.
+
+Ahora vamos a graficar las ventas de cada uno de los productos.
+
+##iPhone
+
+```{r}
+date <-seq(as.Date("1998/10/01"), as.Date("2016/03/30"),"quarter")
+date <- as.yearqtr(date, "%Y%q")
+ventasiphone<- zoo(apple[3], date)
+autoplot(ventasiphone) + theme_minimal()
+```
+
+El iphone tiene una tendencia positiva y es periodica. Esto se puede deber al lanzamiento anual del nuevo modelo.
+
+##iPad
+
+```{r}
+ventasipad<- zoo(apple[4], date)
+autoplot(ventasipad) + theme_minimal()
+```
+
+Al principio tiene una tendencia positiva pero por el año 2013 esta se vuelve negativa. 
+Se puede ver que es periodica y al igual que la tendencia los picos cada vez son menores.
+Esto se puede deber a que una vez que se compra un iPad no es necesario cambiar el modelo cada año ya que su utilidad no es muy grande.
+
+##iPod
+
+```{r}
+ventasipod<- zoo(apple[5], date)
+autoplot(ventasipod) + theme_minimal()
+```
+
+El iPod fue el producto estrella de Apple del año 2005 al 2010 pero con la llegada del iPhone cada vez menos personas compraban el iPod.
+Apple decidió dejarlo de fabricar en 2015 debido a su poca demanda.
+
+##Mac
+
+```{r}
+ventasmac<- zoo(apple[6], date)
+autoplot(ventasmac) + theme_minimal()
+```
+
+Los Mac tienen una tendencia positiva y no se ve una periodicidad los primeros años, la cual sí se observa en años recientes.
+
+##Ventas Totales
+
+```{r}
+ventasTot <- data.frame(apple[1:2],apply(apple[,3:6],1,sum))
+colnames(ventasTot)[3]<-"Sales"
+zventasTot<- zoo(ventasTot[3], date)
+autoplot(zventasTot) + theme_minimal() + ggtitle('Ventas de Apple') + xlab('Año') + ylab('Ventas')
+```
+
+```{r}
+Tsales<-ggfreqplot(as.ts(zventasTot[-1]),freq=4,nrow=1,
+                   facet.labeller=c("1T","2T","3T","4T"))+ggtitle("Apple:Ventas Trimestrales")
+Tsales
+```
+
+Observamos que del 2000 al 2005 el crecimiento en las ventas de apple no es muy grande pero del año 2006 en adelante vemos que hay subidas repentinas en las ventas pero estas ventas no se mantienen ya que el valor baja pero a un nivel mas alto.
+Esto se puede deber al lanzamiento de los productos apple, ya que los primeros meses mucha gente compra el nuevo dispositivo.
+La subida más pronunciada la vemos en el año 2011, intentaremos ver si esta subida afecta en el cálculo del modelo.
+Por último podemos ver que la serie no es estacionaria, tiene una tendencia positiva y  estacionalidad anual(m=12).
+
+```{r}
+tsdisplay(log(zventasTot))
+```
+
+Podemos ver que existe correlación en nuestros datos, trateremos de eliminarla con algún metodo.
+
+Usaremos las ventas totales para hacer la predicción.
+
+Omitiremos 5 valores de la serie y usaremos autoarima para crear el modelo.
+
+```{r}
+cOmit <- 5
+nObs <- length(zventasTot)
+oVentas <- window(zventasTot,start=index(zventasTot[1]),end=index(zventasTot[nObs-cOmit]))
+pVentas <- window(zventasTot,start=index(zventasTot[nObs-cOmit+1]),end=index(zventasTot[nObs]))
+```
+
+#ETS
+
+Crearemos distintos modelos ets y veremos cuál es el que mejor predice las ventas.
+
+```{r}
+#Fit Simple Exponential Smoothing
+ets1 <- ses(oVentas)
+
+#Fit Holt
+ets2 <- holt(oVentas)
+
+#Fit Holt- exponential
+ets3 <- holt(oVentas,exponential=TRUE)
+
+#Fit Holt - damped
+ets4 <- holt(oVentas,damped=TRUE)
+
+#Fit Holt - (exponential+damped)
+ets5 <- holt(oVentas,exponential=TRUE,damped=TRUE)
+
+fit6 <- hw(oVentas,seasonal="additive")
+fit7 <- hw(oVentas,seasonal="multiplicative")
+
+plot(ets3, type="o", ylab="Ventas",  flwd=1)
+lines(window(zventasTot),type="o")
+lines(ets1$mean, type="o",col=2)
+lines(ets2$mean, type="o",col=3)
+lines(ets4$mean, type="o",col=5)
+lines(ets5$mean, type="o",col=6)
+lines(fit6$mean, type="o", col=7)
+lines(fit7$mean, type="o", col=8)
+legend("topleft", lty=1, pch=1, col=1:8,
+       c("Data","SES","Holt's","Exponential",
+         "Additive Damped","Multiplicative Damped","Holt Winters' Additive","Holt Winters' Multiplicative"))
+```
+
+En la gráfica se observa que los mejores modelos son el Holt Winters Aditivo y el Holt Winters Multiplicativo.
+Porcederemos a usar el comando ets() para ver qué modelo es el que R nos recomienda.
+
+```{r}
+etsfit<-ets(oVentas)
+fventas.ets=forecast(etsfit)
+summary(fventas.ets)
+plot(fventas.ets)
+lines(window(zventasTot),type="o")
+
+```
+
+Vemos que el modelo al principio es bueno pero en las últimas ventas se aleja demasiado.
+
+```{r}
+matrix(c(fventas.ets$mean[1:cOmit],zventasTot[(nObs-cOmit+1):nObs]),ncol=2)
+```
+
+En esta tabla se aprecia mejor como al principio el modelo predice bien pero los dos últimos cuartos de año la predicción se aleja bastante.
+
+#ARIMA
+
+```{r}
+fit1=auto.arima(oVentas,lambda=0)
+summary(fit1)
+```
+
+R nos sugiere usar un modelo ARIMA(1,0,0)(1,1,0)[4] y notamos que el AIC y BIC de este modelo es menor que el del modelo ETS.
+
+```{r}
+ggtsdisplay(fit1$residuals)
+```
+
+A simple viste parece que el error es normal excepto por una observación que es muy negativa.
+Por otro lado podemos ver que no hay correlación.
+
+Comprobamos si los errores son normales con lag 12 ya que se tiene un periodo de n=12.
+
+```{r}
+Box.test(fit1$residuals,lag=12, fitdf=3, type="Lj")
+```
+
+Aceptamos que los errores se comportan de manera normal.
+
+Hacemos la predicción y graficamos el modelo.
+
+```{r}
+fventas.arima=forecast(fit1)
+df_new <- data.frame(value = as.vector(zventasTot),
+                     time = time(zventasTot))
+g<-ggplot(df_new)+geom_point(aes(x=time,y=value))+geom_line(aes(x=time,y=value))+ 
+  autolayer(fventas.arima,alpha=0.4)+ggtitle("ARIMA: Predicción Apple")
+g
+```
+
+Se puede ber que las predicciones son mas acertadas con un modelo ARIMA.
+
+```{r}
+matrix(c(fventas.arima$mean[1:cOmit],zventasTot[(nObs-cOmit+1):nObs]),ncol=2)
+```
+
+Con un Modelo ARIMA la predicción de los últimos dos cuartos tambien se aleja de la realidad pero menos que con el modelo ETS.
+
+Para mejorar el modelo voy a quitar las observaciones hasta el año 2005 ya que son observaciones muy alejadas, además, las ventas son casi una constante en estos años por lo que no nos aportan información importante.
+
+```{r}
+menos <- c(1:28)
+ventasTot2<-ventasTot[-menos,1:3]
+date2 <-seq(as.Date("2005/10/01"), as.Date("2016/03/30"),"quarter")
+date2 <- as.yearqtr(date2, "%Y%q")
+zventasTot2 <- zoo(ventasTot2[3], date2)
+nObs2 <- length(zventasTot2)
+oVenta2 <- window(zventasTot2,start=index(zventasTot2[1]),
+                  end=index(zventasTot2[nObs2-cOmit]))
+pVentas2 <- window(zventasTot2,start=index(zventasTot2[nObs2-cOmit+1]),
+                   end=index(zventasTot2[nObs2]))
+fit2=auto.arima(oVenta2,lambda=0)
+summary(fit2)
+ggtsdisplay(fit2$residuals)
+Box.test(fit2$residuals,lag=12, fitdf=3, type="Lj")
+Pfventas.arima=forecast(fit2)
+df_new2 <- data.frame(value = as.vector(zventasTot2),
+                     time = time(zventasTot2))
+g2<-ggplot(df_new2)+geom_point(aes(x=time,y=value))+geom_line(aes(x=time,y=value))+ 
+  autolayer(Pfventas.arima,alpha=0.4)+ggtitle("ARIMA: Predicción Apple")
+g2
+```
+
+Este modelo no es nada bueno ya que los errores no se distribuyen de forma normal, tenemos un poco de autocorrelación y las predicciones se alejan bastante de la realidad.
+
+```{r}
+grid.arrange(g2,g,ncol=2)
+```
+
+Comparando con nuestro modelo original podemos ver que el anterior es mucho mejor en cualquier aspecto.
+
+```{r}
+g
+```
+
+#Conclusión
+
+R es una herramienta muy buena para hacer predicciones ya que se pueden crear modelos predictivos y compararlos con bastante facilidad.
+
+A lo largo de la práctica se puede observar que el mejor modelo fue el primer ARIMA calculado ya que predice muy bien los cambios en las ventas y cumple con todos los tests.
+
+Por último, pienso que predecir las ventas de Apple es bastante complicado porque siempre hay factores externos que pueden afectar positiva o negativamente a sus ventas.
+
+
+
