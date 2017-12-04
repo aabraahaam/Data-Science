@@ -1,0 +1,77 @@
+---
+title: "Práctica 2 Perceptrón"
+author: "Abraham Ramírez"
+date: "1 Diciembre 2017"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Primero cargamos las funciones vistas en clase.
+Esta formula calcula la distancia del punto al plano de las estimaciones
+
+```{r}
+DistanceFromPlane = function(z, w, b) {
+  sum(z * w) + b
+}
+```
+
+Si está por debajo del 0 damos -1 y si no 1.
+
+```{r}
+ClassifyLinear = function(x, w, b) {
+  distances = apply(x, 1, DistanceFromPlane, w, b)
+  return(ifelse(distances < 0, -1, +1))
+}
+```
+
+Esta función calcula la norma del vector.
+
+```{r}
+EuclideanNorm <- function(x) {
+  return(sqrt(sum(x * x)))
+}
+```
+
+Algoritmo perceptron
+
+```{r}
+PerceptronFunction <- function(x, y, learning.rate = 1,maxiterations) {
+  w = vector(length = ncol(x)) 
+  b = 0 
+  iterations = 0 
+  R = max(apply(x, 1, EuclideanNorm))
+  convergence = FALSE 
+  while (!convergence) {
+    convergence = TRUE 
+    yc <- ClassifyLinear(x, w, b)
+    for (i in 1:nrow(x)) {
+      if (y[i] != yc[i] & iterations<maxiterations) {
+        convergence <- FALSE
+        w <- w + learning.rate * y[i] * x[i,]
+        b <- b + learning.rate * y[i] * R^2
+        iterations <- iterations + 1
+      }
+    }
+  }
+  s = EuclideanNorm(w)
+  #print(paste0('El algoritmo terminó en ', iterations, ' iteraciones'))
+  return(list(w = w/s, b = b/s, steps = iterations))
+}
+```
+
+
+
+```{r}
+#-----GGPLOT2-----
+
+```
+
