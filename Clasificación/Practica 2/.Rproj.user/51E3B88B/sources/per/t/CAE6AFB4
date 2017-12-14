@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1512490007418.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "351335840",
+    "id" : "CAE6AFB4",
+    "lastKnownWriteTime" : 1512497363,
+    "last_content_update" : 1512497363750,
+    "path" : "~/CUNEF/Técnicas de clasificación/Practica 2/script.R",
+    "project_path" : "script.R",
+    "properties" : {
+        "cursorPosition" : "86,15",
+        "scrollLine" : "78",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
