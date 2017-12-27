@@ -1,0 +1,1 @@
+"0","ggplot(data=resultado)+geom_bar(aes(x=clusters,color=VALORACION_ALOJ))"

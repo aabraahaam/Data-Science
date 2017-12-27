@@ -1,0 +1,195 @@
+---
+title: "Practica 1"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Técnicas de Agrupación y de Reducción de la Dimensión
+##¿Qué sabemos de los viajeros?
+
+El archivo viajeros.csv muestra los datos de 50.000 viajeros de los que tenemos información diversa como su nacionalidad, su sexo, su edad, y, lo que más nos interesa, la valoración que ofrecen a un conjunto muy amplio de características, como su impresión general (en la columna del mismo nombre) o el alojamiento, entre otras (recogidas bajo el genérico valoración_xxx, donde xxx recoge el atributo concreto valorado).
+
+Debe emitir un informe detallando si existen grupos de turistas homogéneos a partir de la valoración que dan a los distintos servicios, tal y como se ha señalado. Deberá justificar que el análisis puede llevarse a cabo, el número de clusters a emplear, y la solución alcanzada. Se valorará, además de una correcta presentación, la identificación de posibles relaciones de los clusters alcanzados con una o varias características adicionales (pista: piense en la posible concentración de viajeros en los clusters en función de su nacionalidad, de su profesión, de su sexo, edad o renta, o de una combinación de las mismas).
+
+Cargamos las librerías necesarias para realizar el análisis cluster.
+
+```{r}
+set.seed(1234)
+require(cluster)
+require(fpc)
+require(factoextra)
+require(dplyr)
+library(dendextend)
+require(ggrepel)
+require(NbClust)
+viajeros <- read.csv('viajeros.csv')
+summary(viajeros)
+```
+
+Observamos que tenemos muchos valores perdidos en nuestros datos.
+
+Procederemos a crear un nuevo data frame sin valores perdidos y eliminaremos las variables cualitativas del cual extraeremos una muestra aleatoria simple de 1000 observaciones.
+
+```{r}
+viajerosna <- na.omit(viajeros)
+viajerosna <- viajerosna[,4:32]
+viajerosna_mas =viajerosna[sample(1:nrow(viajerosna), 1000,replace=FALSE),]
+summary(viajerosna_mas)
+```
+
+Calculamos algunos estadisticos:
+
+```{r}
+viajerosna_mas_stats = data.frame(
+  Min = apply(viajerosna_mas, 2, min), # mínimo
+  Med = apply(viajerosna_mas, 2, median), # mediana
+  Mean = apply(viajerosna_mas, 2, mean), # media
+  SD = apply(viajerosna_mas, 2, sd), # desviación típica
+  Max = apply(viajerosna_mas, 2, max) # máximo
+)
+viajerosna_mas_stats = round(viajerosna_mas_stats, 1)
+head(viajerosna_mas_stats)
+```
+
+Observamos que la media de los valores es bastante parecido a su mediana, por lo que se puede tipificar con respecto a la media.
+
+```{r}
+viajeros_tip=scale(viajerosna_mas)
+summary(viajeros_tip)
+viajeros_tip_stats = data.frame(
+  Min = apply(viajeros_tip, 2, min), # mínimo
+  Med = apply(viajeros_tip, 2, median), # mediana
+  Mean = apply(viajeros_tip, 2, mean), # media
+  SD = apply(viajeros_tip, 2, sd), # desviación típica
+  Max = apply(viajeros_tip, 2, max) # máximo
+)
+viajeros_tip_stats = round(viajeros_tip_stats, 1)
+head(viajeros_tip_stats)
+```
+
+Calcularemos el dendograma de los datos para ver como se comporta nuestra muestra.
+
+```{r}
+viajeros_tip=as.data.frame(viajeros_tip)
+d = dist(viajeros_tip, method = "euclidean")
+viajeros.hc = hclust(d, method = "ward.D2" )
+plot(viajeros.hc, cex = 0.6, hang = -1, main="Dendrograma - hclust")
+rect.hclust(viajeros.hc,k=2,border=2:4)
+plot(viajeros.hc, cex = 0.6, hang = -1, main="Dendrograma - hclust")
+rect.hclust(viajeros.hc,k=4,border=2:4)
+```
+
+A simple viste observamos que se podrían hacer 2 o 4 grupos para agrupar a nuestra muestra.
+
+```{r}
+grp = cutree(viajeros.hc, k = 2)
+table(grp)
+grp2 = cutree(viajeros.hc, k = 4)
+table(grp2)
+fviz_cluster(list(data = viajeros_tip, cluster = grp), stand = FALSE, geom = "point", pointsize = 1,title="Clusters generados - hclust")
+fviz_cluster(list(data = viajeros_tip, cluster = grp2), stand = FALSE, geom = "point", pointsize = 1,title="Clusters generados - hclust")
+
+```
+
+A simple vista no podemos decir cuál de estos dos clusters es mejor.
+
+Ahora realizaremos un análisis para ver cuál es el número óptimo de clusters.
+
+```{r}
+Nb.viajeros=NbClust(viajeros_tip, distance = "euclidean", min.nc = 2,
+                 max.nc = 10, method = "complete", index ="all")
+fviz_nbclust(Nb.viajeros) + theme_minimal() +
+  labs(x="Número k de clusters", y="Frecuencia")
+```
+
+Podemos observar que el número óptimo de clusters son 4 pero parece que 2 también serpia una buena opción para partir nuestros datos.
+Haremos dos clusters, uno con dos particiones y otro con 4 y veremos cual se comporta mejor.
+
+Utilizaremos el método CLARA para obtener nuestros clusters finales.
+
+```{r}
+viajeros.clara=clara(viajerosna, 2, samples=200)
+fviz_cluster(viajeros.clara, stand = TRUE, geom = "point", pointsize = 1)
+```
+
+En este gráfico se observa que se separan bastante bien las observaciones.
+
+```{r}
+plot(silhouette(viajeros.clara), col = 2:3, main = "Gráfico de perfil")
+fviz_silhouette(silhouette(viajeros.clara))
+```
+
+Vemos que el grupo 2 en su mayoría está bien clasificado pero el grupo 1 no tanto.
+
+```{r}
+viajeros.clara=clara(viajerosna, 4, samples=200)
+fviz_cluster(viajeros.clara, stand = TRUE, geom = "point", pointsize = 1)
+```
+
+Con 4 grupos también se ve que es una buena clasificación pero algunos grupos están muy por encimas de otros.
+Se puede notar que con las dos dimensiones de nuestro gráfico se explica el 50% de la muestra lo cual está bastante bien.
+
+```{r}
+plot(silhouette(viajeros.clara), col = 2:5, main = "Gráfico de perfil")
+fviz_silhouette(silhouette(viajeros.clara))
+```
+
+El grupo 1 está mal calificado pero los demas grupos en general se ven bien.
+
+Nos quedaremos con el cluster de 4 grupos ya que el test nos dice que este es el que clasifica mejor a la muestra.
+
+Ahora volveremos a nuestro data frame original y analizaremos los grupos creados para ver como se comportan con respecto a la edad, salario, país.
+
+```{r}
+clusters<-viajeros.clara$clustering
+clusters<-as.data.frame(clusters)                        
+resultado<-na.omit(viajeros)
+resultado<-data.frame(resultado,clusters)
+```
+
+```{r}
+ggplot(data=resultado)+geom_bar(aes(x=clusters,color=SEXO))+ theme_light()
+```
+
+En esta gráfica podemos apreciar que hay el mismo número de hombres y mujeres en los diferentes clusters.
+
+```{r}
+ggplot(data=resultado)+geom_bar(aes(x=clusters,color=OCUPACION))+ theme_light()
+```
+
+```{r}
+ggplot(data=resultado)+geom_bar(aes(x=clusters,color=PAIS_RESID_AGRUP))+ theme_light()
+```
+
+```{r}
+ggplot(data=resultado)+geom_bar(aes(x=clusters,color=ALOJ_CATEG_1))+ theme_light()
+```
+
+En este gráfico se ve que en los grupos 3 y 4 hay pocas personas que se quedaron en viviendas propias o casas de amigos o familiares.
+
+```{r}
+
+ggplot(data=resultado)+geom_bar(aes(x=clusters,color=INGRESOS))+ theme_light()
+```
+
+Comparaciones entre cluster sobre la impresión y valoración del alojamiento:
+
+```{r}
+table(resultado$clusters,resultado$IMPRESION)
+table(resultado$clusters,resultado$VALORACION_ALOJ)
+```
+
+##Conclusiones
+
+Vemos que los clusters son bastante homogeneos en cuanto a sus variables cualitativas, todos tienen en proporción la misma cantidad de todas las cualidades.
+En conclusión se puede decir que las calificaciones que dan los clientes no tienen mucho que ver con su nivel adquisitivo, sexo o edad.
+
+Donde sí podemos notar diferencias es en la valoración y en la impresión del alojamiento entre clusters.
+En el grupo 1 y 2 tenemos a clientes que estuvieron mas satisfechos con su estadía.
+En el grupo 3 son clientes que les causó una buena impresión pero sin embargo no estuvieron tan satisfechos con su estadía.
+En el grupo 4 los clientes estuvieron muy satisfechos con su estadía ya que no existe ninguna valoración baja y una muy buena impresión ya que al igual que la valoración no hay valoraciones bajas.

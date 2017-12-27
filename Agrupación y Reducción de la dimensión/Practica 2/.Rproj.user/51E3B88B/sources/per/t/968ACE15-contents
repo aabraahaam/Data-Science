@@ -1,0 +1,19 @@
+---
+title: "Practica 2"
+author: "Abraham Ramirez"
+date: "24 de diciembre de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# ¿Qué caracteriza a los todo terreno?
+
+
+
+```{r}
+datos <- read.csv('tterreno_euro.csv')
+```
+

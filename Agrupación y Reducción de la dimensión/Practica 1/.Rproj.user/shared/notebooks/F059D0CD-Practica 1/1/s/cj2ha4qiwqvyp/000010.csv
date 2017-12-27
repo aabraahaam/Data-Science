@@ -1,0 +1,2 @@
+"0","fviz_cluster(list(data = viajeros_tip, cluster = grp2), stand = FALSE, geom = ""point"", pointsize = 1,title=""Clusters generados - hclust"")"
+"2","argument title is deprecated; please use main instead."

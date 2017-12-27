@@ -1,0 +1,171 @@
+### MASTER EN DATA SCIENCE PARA FINANZAS ###
+##AN?LISIS FACTORIAL DE CORRESPONDENCIAS##
+
+.libPaths(c(.libPaths(), "F:/PROGRAMAS/R Libraries", "C:/Program Files/R/R-3.2.3/library"))
+.libPaths()
+
+#### A partir de la matriz A de frecuencias absolutas, pretendemos generar una matriz que recoja
+## la suma de las diferencias cuadr?ticas de cada celda respecto de las dem?s dividida por
+## la frecuencia marginal de la fila
+## Si 1? y 2? columnas y marginal de fila son
+## 8    9       31
+## 9    5       21
+## 8    2       20
+## la celda a_12 de la matriz final debe recoger
+## (8-9)^2/31 + (9-5)^2/21 + (8-2)^2/20
+
+## As? sucesivamente para todas las diferencias de cada una de las cuatro columnas respecto de cada una de ellas.
+
+## Posteriormente se implementar? sobre la tabla de contingencia de frecuencias marginales
+
+## Ver AFCEjemplo1.xlsx
+
+#####################################
+set.seed(12345)
+A <- matrix(sample(1:10, 12, replace=T), nrow = 3, byrow = FALSE) #matriz de partida
+A
+A_marg=apply(A, 1, sum) # frecuencias absolutas de filas
+A_marg
+print(A_marg[2])
+A
+
+B=apply(A, 1, function(x) (x[1] - x[2])^2) #cuadrado de la diferencia i1 - i2
+B
+
+C1=B[1]/A_marg[1] #1? dif cuadr?tica menos marginal fila 1
+C2=B[2]/A_marg[2] #2? dif cuadr?tica menos marginal fila 2
+C3=B[3]/A_marg[3] #3? dif cuadr?tica menos marginal fila 3
+C=B[1]/A_marg[1]+B[2]/A_marg[2]+B[3]/A_marg[3] #suma de todos los anteriores
+
+C # Este resultado ocupa la posici?n a_12 en la matriz final 
+
+MAT=matrix(0,1,4) #Prueba: genero un vector fila de ceros
+MAT
+
+
+#Este bucle genera un valor C en cada vuelta que es el valor de (a_i1 - a_i2)^2/f_i.
+#La suma de todas esas diferencias cuadr?ticas ocupar? la posici?n a_12 en la matriz final; es el valor C anterior;
+#Al correr el bucle,    en la 1? vuelta suma C1 a la posici?n a_12 de MAT (que es CERO), 
+#                       en la 2? vuelta le suma C2
+#                       en la 3? vuelta le suma C3
+# Para el bucle tras 3 vueltas (i in 1:3) y pedimos (fuera del for) que muestre la matriz MAT
+##FUNCIONA
+
+for(i in 1:3){
+        C=B[i]/A_marg[i]
+        MAT[1,2]=MAT[1,2]+C
+        #print(C)
+}
+MAT
+
+###
+
+#Este bucle genera la matriz final
+MATR=matrix (0, 4,4) # matriz de ceros de la misma dimensi?n de la final
+MATR
+for(k in 1:4){
+        for(j in 1:4){
+                B=apply(A, 1, function(x) (x[k] - x[j])^2) #cuadrado de la diferencia i1 - i2
+                for(i in 1:3){
+                        C=B[i]/A_marg[i]
+                        MATR[k,j]=MATR[k,j]+C
+                }
+        }
+}
+MATR
+#MATRIZ DE ra?ces cuadradas
+
+DEF=sqrt(MATR)
+DEF
+#### AHORA partimos de la misma matriz A pero a partir de las frecuencias relativas por columna
+A
+
+propcol=prop.table(A, 2) #frecuencias relativas por columnas
+propcol
+n=sum(A)
+n #total de observaciones para calcular las proporciones de cada categor?a de fila,
+
+masa_fila=margin.table(A, 1)/n
+
+masa_fila
+
+result=matrix (0, 4,4) # matriz de ceros de la misma dimensi?n de la final
+result
+for(k in 1:4){
+        for(j in 1:4){
+                BB=apply(propcol, 1, function(x) (x[k] - x[j])^2) #cuadrado de la diferencia i1 - i2
+                for(i in 1:3){
+                        CC=BB[i]/masa_fila[i]
+                        result[k,j]=result[k,j]+CC
+                }
+        }
+}
+result
+dist_col=sqrt(result)
+dist_col # Matriz de distancias entre columnas
+
+## PASAMOS a distancias entre filas
+
+propfila=prop.table(A, 1) #frecuencias relativas por filas
+propfila
+
+masa_col=margin.table(A, 2)/n
+
+masa_col
+
+result2=matrix(0,3,3)
+
+for(k in 1:3){
+        for(j in 1:3){
+                BBB=apply(propfila, 2, function(x) (x[k] - x[j])^2) #cuadrado de la diferencia i1 - i2
+                for(i in 1:4){
+                        CCC=BBB[i]/masa_col[i]
+                        result2[k,j]=result2[k,j]+CCC
+                }
+        }
+}
+
+result2
+
+dist_fila=sqrt(result2)
+dist_fila # Matriz de distancias entre filas
+
+## Ahora s?lo queda aplicar las EMD sobre cada una de las matrices y representar
+
+#Ponemos nombre a filas y columnas
+
+rownames(A)= c("Soltero", "Casado", "Viudo")
+colnames(A)= c("G1", "G2", "G3", "G4") #donde Gi es el grupo de edad i
+A
+
+rownames(dist_col)= c("G1", "G2", "G3", "G4")
+colnames(dist_col)= c("G1", "G2", "G3", "G4")
+dist_col
+
+rownames(dist_fila)= c("Soltero", "Casado", "Viudo")
+colnames(dist_fila)= c("Soltero", "Casado", "Viudo")
+dist_fila
+
+# Se aplica el MDS m?trico
+r1=cmdscale(dist_col,eig=TRUE) # Aplica EMD m?tricas a las matriz de distancias entre columnas
+r1$points #devuelve las coordenadas en el espacio 2D (por defecto, no hemos cambiado el n?mero de las mismas)
+r1$eig #devuelve los autovalores resultantes de la diagonalizaci?n
+
+c1=cmdscale(dist_fila,eig=TRUE) # Aplica EMD m?tricas a las matriz de distancias entre filas
+c1$points #devuelve las coordenadas en el espacio 2D (por defecto, no hemos cambiado el n?mero de las mismas)
+c1$eig #devuelve los autovalores resultantes de la diagonalizaci?n
+
+# Dibujamos las coordenadas en un dos dimensiones
+par(pty="s") 
+
+plot(r1$points,xlim=range(r1$points[,1],c1$points[,1]),ylim=range(r1$points[,1],c1$points[,1]),
+     type="n",
+     xlab="Dimensi?n 1",ylab="Dimensi?n 2",
+     lwd=2)
+
+text(r1$points,labels=rownames(A), cex=.6,lwd=2, col="red")
+text(c1$points,labels=colnames(A),cex=0.6,lwd=4, col="blue")
+abline(h=0,lty=2,col="blue")
+abline(v=0,lty=2,col="blue")
+
+

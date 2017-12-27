@@ -1,0 +1,307 @@
+#################################################################
+######### MASTER EN DATA SCIENCE PARA FINANZAS - CUNEF ##########
+#################################################################
+####### T?CNICAS DE AN?LISIS ESTAD?STICO EN DATA SCIENCE I ######
+#################################################################
+####### PR?CTICA 2 DE AN?LISIS DE COMPONENTES PRINCIPALES #######
+#################################################################
+
+
+.libPaths( c( .libPaths(), "F:/Varios/RLibs") )
+.libPaths()
+
+## cargamos factoextra y factomineR
+library(factoextra)
+library(FactoMineR)
+## cargamos ACPTIUSD.csv
+#TIUSD=read.csv("F:/Boxes/Dropbox/Estadistica/[02] Multivar/[10] MASTER/[03] Datos/ACPTIUSD.csv", sep=";")
+TIUSD=read.csv("ACPTIUSD.csv", sep=";")
+## ELEMENTOS: 
+# Observaciones activas, las empleadas para efectuar el an?lisis;
+# Observaciones suplementarias, las que usaremos para predecir
+# Variables activas y suplmentarias, idem que los individuos pero en variables.
+
+#Aqu?, trataremos como observaciones activas las 949 primeras y suplementarias las 950 a 978;
+# y como variable suplementaria, a predecir, la IRS.10Y
+
+head(TIUSD)
+tail(TIUSD)
+
+TIUSD.act=TIUSD[1:949, 1:9]
+head(TIUSD.act)
+str(TIUSD.act)
+Dates=as.Date(TIUSD.act$X, format = "%d/%m/%y") #creamos un vector de fechas...
+TIUSD.act=TIUSD.act[,-1] #... para extraer la primera columna (de fechas) del objeto de trabajo
+head(Dates)
+## AN?LISIS EXPLORATORIO
+
+summary(TIUSD.act)
+
+#otra forma
+TIUSD.act_stats = data.frame( 
+        Min = apply(TIUSD.act, 2, min, na.rm=TRUE), # m?n
+        Q1 = apply(TIUSD.act, 2, quantile, 1/4, na.rm=TRUE), # 1er cuartil
+        Med = apply(TIUSD.act, 2, median, na.rm=TRUE), # mediana
+        Mean = apply(TIUSD.act, 2, mean, na.rm=TRUE), # media
+        Q3 = apply(TIUSD.act, 2, quantile, 3/4, na.rm =TRUE), # 3er cuartil
+        Max = apply(TIUSD.act, 2, max, na.rm=TRUE) # M?x
+)
+TIUSD.act_stats=round(TIUSD.act_stats, 1)
+TIUSD.act_stats
+
+##An?lisis de la matriz de correlaci?n
+cor.mat = round(cor(TIUSD.act),2) #problemas con los NA; dos opciones: use="complete.obs" que elimina la fila completa all? donde
+        #existe un NA (opci?n radical pero recomendada) o bien use="pairwise.complete.obs", que los elimina los pares de datos afectados;
+        # en principio, parecer?a m?s adecuada pero puede dar lugar a problemas de matrices no definidas-positivas.
+cor.mat #problema: los NAs
+
+cor.mat = round(cor(TIUSD.act, use="complete.obs"),2) 
+cor.mat
+
+#si queremos conocer los nds, necesitamos cargar otro paquete, Hmisc
+require(Hmisc)
+cor.mat.nds= rcorr(as.matrix(TIUSD.act))
+cor.mat.nds #genera tres elementos en la salida: R, n? de observaciones, nds
+
+# Podemos visualizarlo mediante un correlograma del paquete corrplot (que cargamos)
+require(corrplot)
+
+corrplot(cor.mat, type="lower", order="original", #type=lower hace refe a c?mo queremos visualizar la matriz, si por debajo, completa o por encima de la diagonal principal
+         tl.col="black", tl.cex=0.7, tl.srt=45)  # las correlaciones positivas en azul, las negativas en rojo
+
+corrplot(cor.mat, type="full", order="hclust", addrect = 3,
+         tl.col="black", tl.cex=0.7, tl.srt=45) #permite visualizar clusters
+
+#...  y tambi?n podemos visualizar un chart de correlaciones con el paquete PerformanceAnalytics, que cargamos
+#install.packages("PerformanceAnalytics")
+require(PerformanceAnalytics)
+chart.Correlation(TIUSD.act, histogram=TRUE, pch=19)
+# La distribuci?n de cada variable en la diagonal;
+# Por debajo: diagramas de dispersi?n por pares con l?nea de ajuste
+# Por encima: el valor del coef de corr con el nds como estrellas: 
+        # p-valores(0, 0.001, 0.01, 0.05, 0.1, 1) <=> s?mbolos("***", "**", "*", ".", " ")
+
+# ... o a trav?s de un mapa de calor
+col = colorRampPalette(c("red", "white", "blue"))(20) #definimos la paleta de colores; 
+
+heatmap(x = cor.mat, col = col, symm = TRUE) # symm = T  si la matriz es sim?trica
+
+# ?ndice KMO y prueba de esfericidad de Bartlett para verificar la idoneidad del ACP - ANFAC
+# El KMO lo hace a partir de la matriz de correlaciones parciales.
+
+#inversa de la matriz de correlaciones
+invR = solve(cor.mat)
+
+#Matriz de correlaciones parciales  (-1 * matriz anti-imagen de spss, sin la diagonal)
+#install.packages("ppcor")
+require(ppcor)
+
+TIUSD.act.C=TIUSD.act[complete.cases(TIUSD.act),] #necesitamos la matriz de obsrvaciones SIN NA's
+
+p.cor.mat=pcor(TIUSD.act.C) #devuelve la matriz de correlaciones parciales (estimate), los p-valores, el valor del estad?stico t 
+                        # (t-statistic), el tama?o muestral (n), etc
+
+str(p.cor.mat) #devuelva una lista y creamos la matriz de corrleaciones parciales a partir de "$estimate"
+
+p.cor.mat2=as.matrix(p.cor.mat$estimate)
+p.cor.mat2
+
+#ahora ya podemos calcular el KMO global
+
+kmo.num = sum(cor.mat^2) - sum(diag(cor.mat^2))
+
+kmo.denom = kmo.num + (sum(p.cor.mat2^2) - sum(diag(p.cor.mat2^2)))
+kmo = kmo.num/kmo.denom
+kmo # devuelve un valor elevado, por encima de 0.8.
+
+# Calculamos ahora el MSA o KMO parcial para cada una de las variables 
+
+p.cor.mat2=data.frame(p.cor.mat2)
+rownames(p.cor.mat2) = c(rownames(cor.mat))
+
+colnames(p.cor.mat2)=c(colnames(cor.mat))
+
+for (j in 1:ncol(TIUSD.act)){
+        kmo_j.num <- sum(cor.mat[,j]^2) - cor.mat[j,j]^2
+        kmo_j.denom <- kmo_j.num + (sum(p.cor.mat2[,j]^2) - p.cor.mat2[j,j]^2)
+        kmo_j <- round(kmo_j.num/kmo_j.denom,4)
+        print(paste(colnames(TIUSD.act)[j],"=",kmo_j))
+        }
+
+#Test de Bartlett; no ser? v?lido si el n?mero de observaciones supera las 100, as? que posteriormente muestrearemos 
+cor.mat
+n = nrow(TIUSD.act)
+p = ncol(TIUSD.act)
+chi2 = -(n-1-(2*p+5)/6)*log(det(cor.mat))
+ddl = p*(p-1)/2
+print(chi2)
+print(ddl)
+print(pchisq(chi2,ddl,lower.tail=F))
+
+
+# muestreamos 70 observaciones y aplicamos el test (rebajando a 25 la conclusi?n es la misma)
+set.seed(1234)
+TIUSD.mas=TIUSD.act[sample(nrow(TIUSD.act), 70), ]
+
+n = nrow(TIUSD.mas)
+p = ncol(TIUSD.mas)
+chi2 = -(n-1-(2*p+5)/6)*log(det(cor.mat))
+ddl = p*(p-1)/2
+print(chi2)
+print(ddl)
+print(pchisq(chi2,ddl,lower.tail=F)) # comprobamos que el valor del estad?stico de contraste chi < 0.05 luego rechazamos H0
+
+#Podemos tambi?n aplicarlo desde el paque PSYCH, que cargamos; el resulado es el mismo
+require(psych)
+print(cortest.bartlett(cor.mat, n=nrow(TIUSD.mas)))
+
+
+### IDENTIFICACI?N DE LOS COMPONENTES PRINCIPALES
+# Podemos usar varias opciones de identificaci?n; por ejemplo, la siguiente proviene de FACTOMINER:
+# PCA(X, scale.unit = TRUE, ncp = 5, graph = TRUE)
+        # X: data frame con las observaciones por filas
+        # scale.unit : valor l?gico. Si TRUE es que los datos se escalar?n a varianza unitaria antes del an?lisis
+        # Esta normalizaci?n evita la dominaci?n de ciertas variables debido a su mayor dimensi?n. Si trabajamos con la matriz R ser? FALSE
+        # ncp: N?mero de dimensiones en la soluci?n final; en ACP deber?a ser igual al n? original de variables
+        # graph: valor l?gico; muestra un gr?fico si TRUE
+
+
+TIUSD.acp = PCA(TIUSD.act, scale.unit = TRUE, ncp = ncol(TIUSD.act), graph = TRUE) # sustituye los NA por la media de cada variable; 
+                                # podemos hacerlo tambi?n sobre el objeto que continen las observaciones completas, TIUSD.act.c
+
+print(TIUSD.acp) # muestra el objeto list creado con el proceso PCA
+
+autoval= TIUSD.acp$eig #devuelve los autovalores de los CC y el % de la varianza explicada
+round(autoval, 2)
+
+# Representamos gr?ficamente los autovalores
+barplot(autoval[, 2], names.arg=1:nrow(autoval), 
+        main = "Varianza explicada por los CCPP",
+        xlab = "Componentes Principales",
+        ylab = "Porcentaje explicado de la varianza",
+        col ="steelblue",
+        ylim=c(0,105))
+# A?adimos una l?nea que conecte las barras y otra que informe del % acumulado de la varianza explicada
+
+lines(x = 1:nrow(autoval), autoval[, 2], 
+      type="b", pch=19, col = "red")
+lines(x = 1:nrow(autoval), autoval[, 3], 
+      type="o", pch=21, col = "blue", bg="grey")
+## como vemos, s?lo el 1er CP explica m?s del 80% de la varianza, los dos primeros el 98%. La reducci?n de dimensi?n es enorme.
+
+##Hacemos el mismo gr?fico con el pack factoextra
+require(factoextra)
+fviz_screeplot(TIUSD.acp)+
+        labs(title="Scree plot / Gr?fico de sedimentaci?n", x="Factores / Dimensiones /Ejes", y="% Varianza explicada")+
+        geom_line(aes( y = autoval[,3]), linetype="dashed", color = "red")+
+        geom_point(y = autoval[,3], color="red")+
+        theme_minimal()
+
+
+#Podemos representar los individuos o la variables en un mapa de componentes
+plot.PCA(TIUSD.acp, axes = c(1,2), choix=c("ind")) # axes se?ala qu? componentes queremos utilizar en el mapa; m?ximo dos de ellos
+
+plot.PCA(TIUSD.acp, axes = c(1,2), choix=c("var")) # ind o var seg?n queramos representar unos u otras.
+
+fviz_pca_var(TIUSD.acp) # igual con FactomineR
+#Las coordenadas de las observaciones en el espacio de CCPP vienen dadas por 
+TIUSD.acp$var$coord #para las variables
+
+head(TIUSD.acp$ind$coord) #para las observaciones (las seis primeras)
+
+#La calidad de la representaci?n viene dada por la medida cos2, los cuadrados de las cargas factoriales o comunalidades
+TIUSD.acp$var$cos2
+
+apply(as.matrix(TIUSD.acp$var$cos2), 1, sum) #comprobamos que la suma de las comunalidades es uno en cada variable
+
+# Y comprobamos que el autovalor de cada factor j es la suma de los cuadrados de los a_ij
+CP1=TIUSD.acp$var$coord[,1]
+CP1
+CCP2=CP1^2
+CCP2
+
+sum(CCP2)
+
+#cuando para representar una variable son necesarios m?s de 2 CCPP, la variable estar? alejada del borde del c?rculo (no es el caso);
+# las variables que en los 2 CCPP que definen el mapa quedan cercanas al centro tienen poca posibilidad de ser correctamente
+# representadas por ellos.El siguiente gr?fico plantea en escala de colores la contribuci?n de los factores extra?dos en la explicaci?n 
+# de cada variable, es decir su comunalidad
+
+fviz_pca_var(TIUSD.acp, col.var="cos2") +
+        scale_color_gradient2(low="white", mid="blue", 
+                              high="red", midpoint=0.5) + theme_minimal()
+
+# Tambi?n podemos querer conocer la contribuci?n de las variables a los CCPP. A mayor valor de la medida (expresado como %
+# de la relaci?n por cociente entre la comunalidad de la variable respecto del autovalor del CP), mayor contribuci?n de la vble.
+TIUSD.acp$var$contrib
+apply(as.matrix(TIUSD.acp$var$contrib), 2, sum) #comprobamos que suma 100 por columnas
+# Esa contribuci?n puede visualizarse: 
+
+fviz_contrib(TIUSD.acp, choice = "var", axes = 1) # axes=1 se refiere al n? de eje o CP que queremos representar;
+        # la l?nea roja representa la uniformidad en la representaci?n: si cada variable tuviese un poder explicativo uniforme
+        # cada una contribuir?a en 1/p (aqu?, 1/8=12.5%); un valor por encima significa una contribuci?n mayor.
+        # Compru?bese como para el eje 2 los dep?sitos a corto plazo son esenciales
+# Para conocer la contribuci?n de las variables a la explicaci?n de un n?mero concreto de CCPP, simplemente sumamos el producto de
+# la contribuci?n de la vble en cada uno de ellos por el valor propio de cada uno de ellos:
+
+A=as.matrix(TIUSD.acp$var$contrib[,1:2])/100  # lo expresamos en tanto por uno
+B=as.matrix(TIUSD.acp$eig[1:2,1])
+A%*%B # producto matricial 
+
+# Representaci?n de las variables que m?s contribuyen a la explicaci?n de un factor
+fviz_contrib(TIUSD.acp, choice = "var", axes = 1, top = 3) # las tres variables que m?s contribuyen al eje 1
+fviz_contrib(TIUSD.acp, choice = "var", axes = 2, top = 3) # las tres variables que m?s contribuyen al eje 2
+
+# y controbuci?n de cada variable a la explicaci?n de los dos ejes principales, en escala de color
+fviz_pca_var(TIUSD.acp, col.var="contrib")
+
+# ... que podemos modificar
+
+fviz_pca_var(TIUSD.acp, col.var="contrib") +
+        scale_color_gradient2(low="steelblue", mid="white", 
+                              high="darkblue", midpoint=50) + 
+        theme_minimal() # no existe apenas variaci?n por la enorme capacidad de explicaci?n de todas las variables
+
+fviz_pca_ind(TIUSD.acp, alpha.ind="contrib") +
+        theme_minimal() #contribuci?n de las observaciones degradadas por importancia en la explicaci?n
+
+## Rotaciones factoriales. Librer?a prcomp (stats)
+
+# Normalizamos los datos completos
+
+TIUSD.norm = data.frame (scale (TIUSD.act.C)) # normalizamos
+summary(TIUSD.norm)
+round(sapply(TIUSD.norm, mean, na.rm = T), 2)
+sapply(TIUSD.norm, sd, na.rm=T)
+
+#aplicamos el ACP
+TI.acp=prcomp(TIUSD.norm )
+
+summary(TI.acp)
+
+TI.acp$sdev
+(TI.acp$sdev)^2
+sum((TI.acp$sdev)^2)
+
+#gr?fico de saturaci?n, screeplot
+screeplot(TI.acp, type="lines")
+
+#Cargamos la librer?a qcc, de gr?ficos de control de calidad
+require(qcc)
+varianzas = TI.acp$sdev^2  # varianzas
+
+pareto.chart (varianzas, ylab="Varianzas")  # Gr?fico de pareto 
+
+# Rotaci?n
+TI.acp
+TI.acp$rotation
+TI.acp$rotation[,1] #cargas del 1er eje
+
+sum(TI.acp$rotation[,1]^2) # Al haber normalizado los factores, la suma del cuadrado de las cargas el 1
+
+TI.acp$rotation[1,] #cargas de la 1era variable
+sum(TI.acp$rotation[1,]^2)
+
+TI.rot = principal(TIUSD.norm, nfactors=8, rotate="varimax")
+TI.rot$communality
+TI.rot$loadings #cargas factoriales; podemos comprobar que sum(rot.loadings^2) devuelve el "autovalor rotado"

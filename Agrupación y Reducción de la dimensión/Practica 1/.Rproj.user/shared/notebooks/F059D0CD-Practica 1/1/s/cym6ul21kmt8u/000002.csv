@@ -1,0 +1,1 @@
+"0","plot(silhouette(viajeros.clara), col = 2:5, main = ""Gráfico de perfil"")"

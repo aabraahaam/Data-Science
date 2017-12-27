@@ -1,0 +1,29 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1510334348069.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "DC29105F",
+    "lastKnownWriteTime" : 32651569751457901,
+    "last_content_update" : 1510334348069,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "210D27DD",
+        "caption" : "resultado",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=resultado&cache_key=210D27DD",
+        "displayedObservations" : 3814,
+        "environment" : "",
+        "object" : "resultado",
+        "preview" : 0,
+        "totalObservations" : 3814,
+        "variables" : 37
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}
